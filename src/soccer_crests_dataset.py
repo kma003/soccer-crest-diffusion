@@ -12,7 +12,6 @@ class SoccerCrestsDataset(Dataset):
 
     def __init__(self, csv_file=os.path.join(DATA_DIR,'training_data.csv'), transform=None):
         # Read in data from csv
-        print("CSV FILE:", csv_file)
         self.training_df = pd.read_csv(csv_file)
         self.transform = transform
 
@@ -33,6 +32,9 @@ class SoccerCrestsDataset(Dataset):
             img = img[:,:,:3]
             mask = alpha_channel == 0
             img[mask] = 255
+
+        # Resize to 256 x 256 and convert to float32
+        img = transform.resize(img, output_shape=(256,256)).astype(np.float32) # TODO Don't hardcode this image size
 
         sample = {'image':img,'team':team_name,'country':country_name}
         if self.transform:
