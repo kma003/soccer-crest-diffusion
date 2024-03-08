@@ -24,7 +24,7 @@ class SoccerCrestsDataset(Dataset):
 
         country_name = self.training_df.iloc[idx,0]
         team_name = self.training_df.iloc[idx,1]
-        img = io.imread(self.training_df.iloc[idx,2])#[:,:,:3]
+        img = io.imread(self.training_df.iloc[idx,2])
 
         # Only keep the RGB dimension if image is a PNG, and turn the background white
         if img.shape[-1] == 4:
@@ -33,11 +33,13 @@ class SoccerCrestsDataset(Dataset):
             mask = alpha_channel == 0
             img[mask] = 255
 
+        # TODO This could happen during Transforms
         # Resize to 256 x 256 and convert to float32
         img = transform.resize(img, output_shape=(256,256)).astype(np.float32) # TODO Don't hardcode this image size
 
-        sample = {'image':img,'team':team_name,'country':country_name}
         if self.transform:
-            sample = self.transform(sample)
+            img = self.transform(img)
+
+        sample = {'image':img,'team':team_name,'country':country_name}
 
         return sample
