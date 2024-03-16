@@ -24,7 +24,8 @@ class SoccerCrestsDataset(Dataset):
 
         country_name = self.training_df.iloc[idx,0]
         team_name = self.training_df.iloc[idx,1]
-        img = io.imread(self.training_df.iloc[idx,2])
+        #img = io.imread(self.training_df.iloc[idx,2])
+        img = plt.imread(self.training_df.iloc[idx,2])
 
         # Only keep the RGB dimension if image is a PNG, and turn the background white
         if img.shape[-1] == 4:
@@ -34,6 +35,7 @@ class SoccerCrestsDataset(Dataset):
             img[mask] = 255
 
         # TODO This could happen during Transforms
+        # TODO Just switch to opencv
         # Resize to 256 x 256 and convert to float32
         img = transform.resize(img, output_shape=(256,256)).astype(np.float32) # TODO Don't hardcode this image size
 

@@ -20,6 +20,7 @@ for country_name in visible_directories:
         if os.path.isfile(item_path) and item.lower().endswith('.png'):
             team_name = os.path.splitext(item)[0]
             new_row = {'Country':country_name,'Team':team_name,'Image Path':item_path}
+            # TODO append method is deprecated, switch to concat
             df = df.append(new_row,ignore_index=True)
 
 # Save as csv
