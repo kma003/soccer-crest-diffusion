@@ -5,12 +5,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 from skimage import io, transform
 from torch.utils.data import Dataset
+from params.defs import DATA_DIR
 
 class SoccerCrestsDataset(Dataset):
     # TODO Change how this is located
-    DATA_DIR = os.path.join(os.path.dirname(__file__),'..','data')
+    #DATA_DIR = os.path.join(os.path.dirname(__file__),'..','data')
+    dataset_name = 'soccer_crests_one_image'
 
-    def __init__(self, csv_file=os.path.join(DATA_DIR,'training_data.csv'), transform=None):
+    def __init__(self, csv_file=os.path.join(DATA_DIR,dataset_name,'training_data.csv'), transform=None):
         # Read in data from csv
         self.training_df = pd.read_csv(csv_file)
         self.transform = transform

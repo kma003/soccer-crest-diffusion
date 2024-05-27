@@ -1,9 +1,10 @@
 import os
 import pandas as pd
 
+dataset_name = 'crests'
 
 data_dir = os.path.join(os.path.dirname(__file__),'..','data')
-crest_dir = os.path.join(data_dir,'crests')
+crest_dir = os.path.join(data_dir,dataset_name)
 
 # Get all visible directories within the crest directory
 visible_directories = []
@@ -24,4 +25,4 @@ for country_name in visible_directories:
             df = df.append(new_row,ignore_index=True)
 
 # Save as csv
-df.to_csv(os.path.join(data_dir,'training_data.csv'),index=False)
+df.to_csv(os.path.join(crest_dir,'training_data.csv'),index=False)
