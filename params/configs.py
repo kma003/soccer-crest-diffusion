@@ -3,14 +3,15 @@ from dataclasses import dataclass
 @dataclass
 class TrainingConfig:
     image_size = 64
-    train_batch_size = 2
-    eval_batch_size = 2
-    num_epochs = 200
+    train_batch_size = 1
+    eval_batch_size = 1
+    num_epochs = 10
     gradient_accumulation_steps = 1
     learning_rate = 1e-4
     lr_warmup_steps = num_epochs / 10 #500
     mixed_precision = "no"#"fp16"
     output_dir = "logs"
+    save_image_epochs = num_epochs # Only save on the last epoch for now
 
     push_to_hub = False
     hub_private_repo = False
