@@ -1,0 +1,15 @@
+beautifulsoup4==4.12.3
+matplotlib==3.5.3
+numpy==1.20.2
+pandas==1.4.3
+Pillow==9.2.0
+Requests==2.31.0
+scikit_image==0.18.1
+selenium==3.141.0
+setuptools==49.2.1
+torch==2.2.1
+tqdm==4.64.0
+torchvision==0.17.1
+diffusers==0.26.3
+accelerate==0.27.2
+wandb
