@@ -40,6 +40,9 @@ class SoccerCrestsDataset(Dataset):
         # TODO Just switch to opencv
         # Resize to 256 x 256 and convert to float32
         img = transform.resize(img, output_shape=(256,256)).astype(np.float32) # TODO Don't hardcode this image size
+        img = img / 255.0 # Normalize to be between 0 and 1
+        img = np.clip(img, 0, 1) # Make sure all values are between 0 and 1
+        img = img * 2 - 1 # Do final scaling to be between -1 and 1
 
         if self.transform:
             img = self.transform(img)

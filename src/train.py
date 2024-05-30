@@ -165,6 +165,9 @@ def train_loop(config, model, noise_scheduler, optimizer, train_dataloader, lr_s
                 # log metrics to wandb
                 wandb.log({"loss": loss, "lr": lr_scheduler.get_last_lr()[0]})
 
+                if bs == 1:
+                    wandb.log({"timestep": timesteps.item()})
+
             global_step += 1
 
         # After each epoch you optionally sample some demo images with evaluate() and save the model
@@ -174,7 +177,7 @@ def train_loop(config, model, noise_scheduler, optimizer, train_dataloader, lr_s
             if (epoch + 1) % config.save_image_epochs == 0 or epoch == config.num_epochs - 1:
                 image_grid = evaluate(config, epoch, pipeline)
                 if args.wandb:
-                    wandb.log({"Evaluation Image": wandb.Image(image_grid)})
+                    wandb.log({"Evaluation Image": wandb.Image(image_grid, caption=f"Epoch {epoch}")})
 
             #if (epoch + 1) % config.save_model_epochs == 0 or epoch == config.num_epochs - 1:
             #    if config.push_to_hub:
@@ -185,8 +188,8 @@ def train_loop(config, model, noise_scheduler, optimizer, train_dataloader, lr_s
 
 # TODO Perform grid search over learning rate, warmup steps, noise scheduling time steps
 import itertools
-learning_rates = [1e-5,1e-4,1e-3]#[1e-6,1e-5,1e-4,1e-3,1e-2]
-wamrup_steps_fractions = [1/15,1/10,1/5]#[1/20,1/15,1/10,1/8,1/4]
+learning_rates = [1e-4]#[1e-5,1e-4,1e-3]#[1e-6,1e-5,1e-4,1e-3,1e-2]
+wamrup_steps_fractions = [1/10]#[1/15,1/10,1/5]#[1/20,1/15,1/10,1/8,1/4]
 num_timesteps = 100#[100,500,1000,2000]
 
 hyperparamter_combinations = list(itertools.product(
@@ -241,7 +244,7 @@ for combination in hyperparamter_combinations:
     if args.wandb:
         wandb.init(
             # set the wandb project where this run will be logged
-            project="Soccer Crest Diffusion Grid Search Test",
+            project="Image Save Test",
 
             # track hyperparameters and run metadata
             config={
