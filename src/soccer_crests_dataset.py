@@ -34,13 +34,13 @@ class SoccerCrestsDataset(Dataset):
             alpha_channel = img[:,:,3]
             img = img[:,:,:3]
             mask = alpha_channel == 0
-            img[mask] = 255
+            img[mask] = [1.0,1.0,1.0] #img[mask] = 255
 
         # TODO This could happen during Transforms
         # TODO Just switch to opencv
         # Resize to 256 x 256 and convert to float32
         img = transform.resize(img, output_shape=(256,256)).astype(np.float32) # TODO Don't hardcode this image size
-        img = img / 255.0 # Normalize to be between 0 and 1
+        #img = img / 255.0 # Normalize to be between 0 and 1
         img = np.clip(img, 0, 1) # Make sure all values are between 0 and 1
         img = img * 2 - 1 # Do final scaling to be between -1 and 1
 
