@@ -13,7 +13,68 @@ from accelerate import Accelerator
 from models.hf_unet2d import unet2dmodel
 from params.configs import TrainingConfig
 from soccer_crests_dataset import SoccerCrestsDataset
-from utils import make_grid, evaluate
+from utils import evaluate
+
+# Define training loop
+def train_loop(config, model, noise_scheduler, optimizer, train_dataloader, lr_scheduler):
+    # Initialize and prepare accelerator
+    accelerator = Accelerator(
+        mixed_precision=config.mixed_precision,
+        gradient_accumulation_steps=config.gradient_accumulation_steps,
+        project_dir=os.path.join(config.output_dir, "logs"),
+    )
+
+    model, optimizer, train_dataloader, lr_scheduler = accelerator.prepare(
+        model, optimizer, train_dataloader, lr_scheduler
+    )
+
+    # Now train the model
+    global_step = 0 # For logging purposes
+    for epoch in range(config.num_epochs):
+        progress_bar = tqdm(total=len(train_dataloader), disable=not accelerator.is_local_main_process)
+        progress_bar.set_description(f"Epoch {epoch}")
+
+        for step, batch in enumerate(train_dataloader):
+            clean_images = batch["image"]
+            noise = torch.randn(clean_images.shape).to(clean_images.device) # Sample noise to add to the images
+            bs = clean_images.shape[0]
+
+            # Sample a random timestep for each image and add noise from scheduler accordingly
+            timesteps = torch.randint(
+                0, noise_scheduler.config.num_train_timesteps, (bs,), device=clean_images.device
+            ).long()
+
+            noisy_images = noise_scheduler.add_noise(clean_images, noise, timesteps) # Forward diffusion process
+
+            # Prediction and backprop
+            with accelerator.accumulate(model):
+                noise_pred = model(noisy_images, timesteps, return_dict=False)[0] # Predict the noise residual
+                loss = F.mse_loss(noise_pred, noise)
+                accelerator.backward(loss)
+                accelerator.clip_grad_norm_(model.parameters(), 1.0)
+                optimizer.step()
+                lr_scheduler.step()
+                optimizer.zero_grad()
+
+            progress_bar.update(1)
+            logs = {"loss": loss.detach().item(), "lr": lr_scheduler.get_last_lr()[0], "step": global_step}
+            progress_bar.set_postfix(**logs)
+            accelerator.log(logs, step=global_step)
+
+            if args.wandb:
+                # log metrics to wandb
+                wandb.log({"loss": loss, "lr": lr_scheduler.get_last_lr()[0]})
+
+            global_step += 1
+
+        # After each epoch you optionally sample some demo images with evaluate() and save the model
+        if accelerator.is_main_process:
+            pipeline = DDPMPipeline(unet=accelerator.unwrap_model(model), scheduler=noise_scheduler) # This pipeline runs inference and expects model is trained on inputs from -1 to 1
+
+            if (epoch + 1) % config.save_image_epochs == 0 or epoch == config.num_epochs - 1:
+                image_grid = evaluate(config, epoch, pipeline)
+                if args.wandb:
+                    wandb.log({"Evaluation Image": wandb.Image(image_grid, caption=f"Epoch {epoch}")}) # Log some example generated images 
 
 # Command line inputs
 parser = argparse.ArgumentParser(description='Training script for soccer crest diffusion model')
@@ -32,79 +93,8 @@ transforms = v2.Compose([
 dataset = SoccerCrestsDataset(transform=transforms)
 train_dataloader = torch.utils.data.DataLoader(dataset, batch_size=config.train_batch_size, shuffle=True)
 
-# Define training loop
-def train_loop(config, model, noise_scheduler, optimizer, train_dataloader, lr_scheduler):
-    # Initialize accelerator and tensorboard logging
-    accelerator = Accelerator(
-        mixed_precision=config.mixed_precision,
-        gradient_accumulation_steps=config.gradient_accumulation_steps,
-        log_with="tensorboard",
-        project_dir=os.path.join(config.output_dir, "logs"),
-    )
-
-    model, optimizer, train_dataloader, lr_scheduler = accelerator.prepare(
-        model, optimizer, train_dataloader, lr_scheduler
-    )
-
-    global_step = 0
-
-    # Now you train the model
-    for epoch in range(config.num_epochs):
-        progress_bar = tqdm(total=len(train_dataloader), disable=not accelerator.is_local_main_process)
-        progress_bar.set_description(f"Epoch {epoch}")
-
-        for step, batch in enumerate(train_dataloader):
-            clean_images = batch["image"]
-            # Sample noise to add to the images
-            noise = torch.randn(clean_images.shape).to(clean_images.device)
-            bs = clean_images.shape[0]
-
-            # Sample a random timestep for each image
-            timesteps = torch.randint(
-                0, noise_scheduler.config.num_train_timesteps, (bs,), device=clean_images.device
-            ).long()
-
-            # Add noise to the clean images according to the noise magnitude at each timestep
-            # (this is the forward diffusion process)
-            noisy_images = noise_scheduler.add_noise(clean_images, noise, timesteps)
-
-            with accelerator.accumulate(model):
-                # Predict the noise residual
-                noise_pred = model(noisy_images, timesteps, return_dict=False)[0]
-                loss = F.mse_loss(noise_pred, noise)
-                accelerator.backward(loss)
-
-                accelerator.clip_grad_norm_(model.parameters(), 1.0)
-                optimizer.step()
-                lr_scheduler.step()
-                optimizer.zero_grad()
-
-            progress_bar.update(1)
-            logs = {"loss": loss.detach().item(), "lr": lr_scheduler.get_last_lr()[0], "step": global_step}
-            progress_bar.set_postfix(**logs)
-            accelerator.log(logs, step=global_step)
-
-            if args.wandb:
-                # log metrics to wandb
-                wandb.log({"loss": loss, "lr": lr_scheduler.get_last_lr()[0]})
-
-                if bs == 1:
-                    wandb.log({"timestep": timesteps.item()})
-
-            global_step += 1
-
-        # After each epoch you optionally sample some demo images with evaluate() and save the model
-        if accelerator.is_main_process:
-            pipeline = DDPMPipeline(unet=accelerator.unwrap_model(model), scheduler=noise_scheduler) # This pipeline runs inference and expects model is trained on inputs from -1 to 1
-
-            if (epoch + 1) % config.save_image_epochs == 0 or epoch == config.num_epochs - 1:
-                image_grid = evaluate(config, epoch, pipeline)
-                if args.wandb:
-                    wandb.log({"Evaluation Image": wandb.Image(image_grid, caption=f"Epoch {epoch}")})
-
-model = unet2dmodel
-
 # Set up noise scheduler, optimizer, and lr scheduler
+model = unet2dmodel # Unet 2D Model from huggingface
 num_timesteps = 1000
 noise_scheduler = DDPMScheduler(num_train_timesteps=num_timesteps)
 noise_scheduler.set_timesteps(num_inference_steps=num_timesteps)
@@ -119,10 +109,7 @@ lr_scheduler = get_cosine_schedule_with_warmup(
 # Initialize wandb for experiment tracking
 if args.wandb:
     wandb.init(
-        # set the wandb project where this run will be logged
         project="Image Save Test",
-
-        # track hyperparameters and run metadata
         config={
         "learning_rate": config.learning_rate,
         "num_warmup_steps":config.lr_warmup_steps,
@@ -131,7 +118,6 @@ if args.wandb:
     )
 
 # Run training loop
-print("Yes sir")
 train_loop(config=config, model=model, noise_scheduler=noise_scheduler, optimizer=optimizer, 
         train_dataloader = train_dataloader, lr_scheduler = lr_scheduler)
 
