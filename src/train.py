@@ -13,6 +13,7 @@ from accelerate import Accelerator
 from models.hf_unet2d import unet2dmodel
 from params.configs import TrainingConfig
 from soccer_crests_dataset import SoccerCrestsDataset
+from utils import make_grid, evaluate
 
 # Command line inputs
 parser = argparse.ArgumentParser(description='Training script for soccer crest diffusion model')
@@ -30,33 +31,6 @@ transforms = v2.Compose([
 ])
 dataset = SoccerCrestsDataset(transform=transforms)
 train_dataloader = torch.utils.data.DataLoader(dataset, batch_size=config.train_batch_size, shuffle=True)
-
-# TODO Move these to separate file
-def make_grid(images, rows, cols):
-    w, h = images[0].size
-    grid = Image.new("RGB", size=(cols * w, rows * h))
-    for i, image in enumerate(images):
-        grid.paste(image, box=(i % cols * w, i // cols * h))
-    return grid
-
-def evaluate(config, epoch, pipeline):
-    # Sample some images from random noise (this is the backward diffusion process).
-    # The default pipeline output type is `List[PIL.Image]`
-    images = pipeline(
-        batch_size=config.eval_batch_size,
-        generator=torch.manual_seed(config.seed), # Random number generator seed
-        num_inference_steps=1000, # TODO This needs to be changeable from the training loop
-    ).images
-
-    # Make a grid out of the images
-    image_grid = make_grid(images, rows=1, cols=1)
-
-    # Save the images
-    test_dir = os.path.join(config.output_dir, "samples")
-    os.makedirs(test_dir, exist_ok=True)
-    image_grid.save(f"{test_dir}/{epoch:04d}.png")
-
-    return image_grid
 
 # Define training loop
 def train_loop(config, model, noise_scheduler, optimizer, train_dataloader, lr_scheduler):
