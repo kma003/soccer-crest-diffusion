@@ -90,7 +90,7 @@ transforms = v2.Compose([
 	v2.RandomHorizontalFlip(p=0.5),
 	v2.Resize((config.image_size,config.image_size))
 ])
-dataset = SoccerCrestsDataset(transform=transforms)
+dataset = SoccerCrestsDataset(dataset_name='soccer_crests_one_image',transform=transforms)
 train_dataloader = torch.utils.data.DataLoader(dataset, batch_size=config.train_batch_size, shuffle=True)
 
 # Set up noise scheduler, optimizer, and lr scheduler
@@ -102,7 +102,7 @@ noise_scheduler.set_timesteps(num_inference_steps=num_timesteps)
 optimizer = torch.optim.AdamW(model.parameters(), lr=config.learning_rate)
 lr_scheduler = get_cosine_schedule_with_warmup(
     optimizer=optimizer,
-    num_warmup_steps=config.lr_warmup_steps, # How long many epochs until warmed up to the initial lr
+    num_warmup_steps=config.lr_warmup_steps, # How many epochs until warmed up to the initial lr
     num_training_steps=(len(train_dataloader) * config.num_epochs), # Total traning epochs, at the end, lr will be 0
 )
 
