@@ -1,5 +1,6 @@
 logs/
 temp/
+wandb/
 .python-version
 .DS_Store
 *.egg-info
