@@ -81,7 +81,7 @@ parser = argparse.ArgumentParser(description='Training script for soccer crest d
 parser.add_argument('--wandb', action='store_true', help='Enable experiment tracking with wandb')
 parser.add_argument('-ex', '--experiment', type=str, help='Name of the experiment that is being run')
 parser.add_argument('-lr','--learning_rate', type=float, help='Initial value for learning rate')
-parser.add_argument('--dataset_dir', type=str,default='soccer_crests_one_image', help='Name of directory that holds training csv and dataset images')
+parser.add_argument('--dataset_name', type=str,default='soccer_crests_one_image', help='Name of directory that holds training csv and dataset images')
 args = parser.parse_args()
 
 # Set up dataloader
@@ -91,7 +91,7 @@ transforms = v2.Compose([
 	v2.RandomHorizontalFlip(p=0.5),
 	v2.Resize((config.image_size,config.image_size))
 ])
-dataset = SoccerCrestsDataset(dataset_name=args.dataset_dir,transform=transforms)
+dataset = SoccerCrestsDataset(dataset_name=args.dataset_name,transform=transforms)
 train_dataloader = torch.utils.data.DataLoader(dataset, batch_size=config.train_batch_size, shuffle=True)
 
 # Set up noise scheduler, optimizer, and lr scheduler

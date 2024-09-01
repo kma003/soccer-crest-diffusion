@@ -1,9 +1,16 @@
+import argparse
 import os
 import pandas as pd
+from params.defs import DATA_DIR
 
-dataset_name = 'crests'
+# Command line inputs
+parser = argparse.ArgumentParser(description='Training script for soccer crest diffusion model')
+parser.add_argument('--dataset_name', type=str,default='soccer_crests_one_image', help='Name of directory that holds training csv and dataset images')
+args = parser.parse_args()
 
-data_dir = os.path.join(os.path.dirname(__file__),'..','data')
+dataset_name = args.dataset_name
+
+data_dir = DATA_DIR
 crest_dir = os.path.join(data_dir,dataset_name)
 
 # Get all visible directories within the crest directory
