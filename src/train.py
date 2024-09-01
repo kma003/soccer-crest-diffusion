@@ -28,7 +28,7 @@ def train_loop(config, model, noise_scheduler, optimizer, train_dataloader, lr_s
         model, optimizer, train_dataloader, lr_scheduler
     )
 
-    # Now train the model
+    # Training loop
     global_step = 0 # For logging purposes
     for epoch in range(config.num_epochs):
         progress_bar = tqdm(total=len(train_dataloader), disable=not accelerator.is_local_main_process)
@@ -81,6 +81,7 @@ parser = argparse.ArgumentParser(description='Training script for soccer crest d
 parser.add_argument('--wandb', action='store_true', help='Enable experiment tracking with wandb')
 parser.add_argument('-ex', '--experiment', type=str, help='Name of the experiment that is being run')
 parser.add_argument('-lr','--learning_rate', type=float, help='Initial value for learning rate')
+parser.add_argument('--dataset_dir', type=str,default='soccer_crests_one_image', help='Name of directory that holds training csv and dataset images')
 args = parser.parse_args()
 
 # Set up dataloader
@@ -90,7 +91,7 @@ transforms = v2.Compose([
 	v2.RandomHorizontalFlip(p=0.5),
 	v2.Resize((config.image_size,config.image_size))
 ])
-dataset = SoccerCrestsDataset(dataset_name='soccer_crests_one_image',transform=transforms)
+dataset = SoccerCrestsDataset(dataset_name=args.dataset_dir,transform=transforms)
 train_dataloader = torch.utils.data.DataLoader(dataset, batch_size=config.train_batch_size, shuffle=True)
 
 # Set up noise scheduler, optimizer, and lr scheduler
