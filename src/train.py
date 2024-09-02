@@ -15,7 +15,6 @@ from params.configs import TrainingConfig
 from soccer_crests_dataset import SoccerCrestsDataset
 from utils import evaluate
 
-# Define training loop
 def train_loop(config, model, noise_scheduler, optimizer, train_dataloader, lr_scheduler):
     # Initialize and prepare accelerator
     accelerator = Accelerator(
