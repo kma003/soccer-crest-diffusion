@@ -9,6 +9,7 @@ class CustomDiffuser():
         self.cumulative_alphas = torch.cumprod(self.alphas,dim=0)
         self.sqrt_cumulative_alphas = torch.sqrt(self.cumulative_alphas)
         self.sqrt_one_minus_cumulative_alphas = torch.sqrt(torch.tensor(1.0) - self.cumulative_alphas)
+        self.num_timesteps = num_timesteps
 
     def forward_process(self,samples,timesteps,noise):
         # Get the alpha coefficients for each timestep and broadcast across all dimensions following the batch dimension
@@ -24,17 +25,32 @@ class CustomDiffuser():
 
         return noisy_samples
 
+    def predict_previous_sample(self,sample,noise_pred,timestep):
+        # Compute coefficients for update equation
+        beta_t = self.betas[timestep]
+        alpha_t = self.alphas[timestep]
+        sqrt_one_minus_cumulative_alpha_t = self.sqrt_one_minus_cumulative_alphas[timestep]
+        variance = torch.randn_tensor(noise_pred.shape, dtype=noise_pred.dtype) if timestep > 1 else 0
+
+        # Predict original sample from epsilon output of model
+        prev_sample = (1/torch.sqrt(alpha_t)) * (sample - (beta_t/sqrt_one_minus_cumulative_alpha_t) * noise_pred) + variance
+
+        # Clip predicted sample
+        prev_sample = torch.clamp(prev_sample, min=-1, max=1) # TODO This should be assigned from a model config or somewhere else
+
+        return prev_sample
+
     def backward_process(self,model):
-        # Compute cumulative alphas and betas
+        # Initial sample is pure noise 
+       # sample = torch.randn(batch_size,num_channehls,image_size,image_size) # TODO get image size from model, add in batch and num_channels as well
+        #for t in range(num_timesteps-1,-1,-1): Interval is 999 to 0 (inclusive) # Timestep might need to be extended for entire batch
+        #    noise_pred = model(sample,t)
+        #    sample = self.predict_previous_sample(sample,noise_pred,timestep=t)
+        
+        # Permute tensor, clamp values, pull separate images from batch, convert to numpy arrays
 
-        # Predict original sample from epsilon output of model and clip (The model is predicting the added noise)
-
-        # Compute coefficents for previous sample
-
-        # Compute previous sample prediction
-
-        # Add variance back into the previous prediction if the timestep is not 0
         pass
+        
 
 
 if __name__ == "__main__":
