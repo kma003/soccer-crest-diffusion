@@ -27,34 +27,46 @@ class CustomDiffuser():
 
     def predict_previous_sample(self,sample,noise_pred,timestep):
         # Compute coefficients for update equation
-        beta_t = self.betas[timestep]
-        alpha_t = self.alphas[timestep]
-        sqrt_one_minus_cumulative_alpha_t = self.sqrt_one_minus_cumulative_alphas[timestep]
-        variance = torch.randn_tensor(noise_pred.shape, dtype=noise_pred.dtype) if timestep > 1 else 0
+        device = sample.device
+        beta_t = self.betas[timestep].to(device)
+        alpha_t = self.alphas[timestep].to(device)
+        sqrt_one_minus_cumulative_alpha_t = self.sqrt_one_minus_cumulative_alphas[timestep].to(device)
+        variance = torch.randn(noise_pred.shape, dtype=noise_pred.dtype) if timestep > 1 else torch.tensor(0.0)
+        variance = variance.to(device)
 
         # Predict original sample from epsilon output of model
         prev_sample = (1/torch.sqrt(alpha_t)) * (sample - (beta_t/sqrt_one_minus_cumulative_alpha_t) * noise_pred) + variance
 
         # Clip predicted sample
-        prev_sample = torch.clamp(prev_sample, min=-1, max=1) # TODO This should be assigned from a model config or somewhere else
+        #prev_sample = torch.clamp(prev_sample, min=-1, max=1) # TODO This should be assigned from a model config or somewhere else
 
         return prev_sample
 
-    def backward_process(self,model):
+    def backward_process(self,model,batch_size,sample_size,num_channels):
+        #breakpoint()
         # Initial sample is pure noise 
-       # sample = torch.randn(batch_size,num_channehls,image_size,image_size) # TODO get image size from model, add in batch and num_channels as well
-        #for t in range(num_timesteps-1,-1,-1): Interval is 999 to 0 (inclusive) # Timestep might need to be extended for entire batch
-        #    noise_pred = model(sample,t)
-        #    sample = self.predict_previous_sample(sample,noise_pred,timestep=t)
-        
-        # Permute tensor, clamp values, pull separate images from batch, convert to numpy arrays
+        device = model.device
+        sample = torch.randn(batch_size,num_channels,sample_size,sample_size).to(device) 
+        for timestep in reversed(range(self.num_timesteps)): #Timestep might need to be extended for entire batch
+            print(timestep)
+            t = torch.Tensor([timestep]*batch_size).to(torch.int64).to(device)
 
-        pass
+            with torch.no_grad():
+                noise_pred = model(sample, t, return_dict=False)[0] # TODO Change this to work for any model, not just huggingface
+            
+            sample = self.predict_previous_sample(sample,noise_pred,timestep=timestep)
+
+        # Permute tensor, clamp values, pull separate images from batch, convert to numpy arrays
+        output = torch.clamp(sample / 2 + 0.5, min=0, max=1).cpu().detach().permute(0,2,3,1).numpy()
+
+        return output
         
 
 
 if __name__ == "__main__":
     from diffusers import DDPMScheduler, DDPMPipeline
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print("Device:",device)
     num_timesteps = 1000
     noise_scheduler = DDPMScheduler(num_train_timesteps=num_timesteps)
     noise_scheduler.set_timesteps(num_inference_steps=num_timesteps)
@@ -63,5 +75,15 @@ if __name__ == "__main__":
     samples = torch.randn(3,3,3)
     noise = torch.randn(3,3,3)
 
+    from PIL import Image
+    import numpy as np
+    from models.hf_unet2d import unet2dmodel
 
-    test.forward_process(samples=samples,timesteps=torch.Tensor([1,10,100]).long(),noise=noise)
+    model = unet2dmodel
+    model.load_state_dict(torch.load('model.pth'))
+    model.eval()
+    model = model.to(device)
+    output = test.backward_process(model,batch_size=2,sample_size=64,num_channels=3)
+
+    img1 = Image.fromarray((output[0,:,:,:] * 255).astype(np.uint8))
+    img1.show()
