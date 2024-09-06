@@ -61,29 +61,3 @@ class CustomDiffuser():
 
         return output
         
-
-
-if __name__ == "__main__":
-    from diffusers import DDPMScheduler, DDPMPipeline
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print("Device:",device)
-    num_timesteps = 1000
-    noise_scheduler = DDPMScheduler(num_train_timesteps=num_timesteps)
-    noise_scheduler.set_timesteps(num_inference_steps=num_timesteps)
-
-    test = CustomDiffuser(num_timesteps=1000)
-    samples = torch.randn(3,3,3)
-    noise = torch.randn(3,3,3)
-
-    from PIL import Image
-    import numpy as np
-    from models.hf_unet2d import unet2dmodel
-
-    model = unet2dmodel
-    model.load_state_dict(torch.load('model.pth'))
-    model.eval()
-    model = model.to(device)
-    output = test.backward_process(model,batch_size=2,sample_size=64,num_channels=3)
-
-    img1 = Image.fromarray((output[0,:,:,:] * 255).astype(np.uint8))
-    img1.show()
